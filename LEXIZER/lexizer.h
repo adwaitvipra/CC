@@ -17,17 +17,17 @@ union integer
 	unsigned long int ulong_c;
 };
 
-union character
-{
-	char char_c;
-	wchar_t wchar_c;
-};
-
 union real
 {
 	float float_c;
 	double double_c;
 	long double ldouble_c;
+};
+
+union character
+{
+	char char_c;
+	wchar_t wchar_c;
 };
 
 union string
@@ -39,8 +39,8 @@ union string
 union constant
 {
 	union integer const_int;
-	union character const_char;
 	union real const_float;
+	union character const_char;
 	union string const_string;
 };
 

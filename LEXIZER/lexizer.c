@@ -8,6 +8,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <limits.h>
+#include <assert.h>
 
 #include "lexizer.h"
 
@@ -135,7 +136,7 @@ bool isoct (const char *str)
 	int len;
 	bool flag = false;
 
-	if (str && ((len = strlen (str)) > 1))
+	if (str && ((len = strlen (str)) > 0))
 	{
 		flag = true;
 
@@ -152,7 +153,7 @@ bool isoct (const char *str)
 	return flag;
 }
 
-bool isdec (const char *str)
+bool isint (const char *str)
 {
 	int len;
 	bool flag = false;
@@ -192,6 +193,7 @@ bool ishex (const char *str)
 	return flag;
 }
 
+/* TODO: consideration of integer suffix */
 bool isinteger (const char *str)
 {
 	int len;
@@ -201,14 +203,14 @@ bool isinteger (const char *str)
 	{
 		flag = true;
 
-		if (!isbin (str) && !isoct (str) && !isdec (str) && !ishex (str))
+		if (!isbin (str) && !isoct (str) && !isint (str) && !ishex (str))
 			flag = false;
 	}
 
 	return flag;
 }
 
-
+/* TODO: consideration of prefix */
 bool ischaracter (const char *str)
 {
 	int len;
@@ -221,19 +223,110 @@ bool ischaracter (const char *str)
 	return flag;
 }
 
+/* TODO: consideration of floating suffix */
 bool isreal (const char *str)
 {
 	int len;
-	bool flag = false;
+
+	bool check = false, flag = false;
+
+	char *expox = NULL, *expoy = NULL, *nsign = NULL, *psign = NULL;
+	char *tmp = NULL, *period = NULL, *exponent = NULL, *sign = NULL;
 
 	if (str && ((len = strlen (str)) > 0))
 	{
-		flag = true;
+		/* at most one period expected, first and last period should be same */
+		period = ((tmp = strchr (str, '.')) == strrchr (str, '.')) ? tmp : NULL;
+
+		/* at most one exponent expected, first and last exponent should be same */
+		expox = (((tmp = strchr (str, 'E')) == strrchr (str, 'E')) && tmp) ? tmp : NULL;
+		expoy = (((tmp = strchr (str, 'e')) == strrchr (str, 'e')) && tmp) ? tmp : NULL;
+
+		if ((expox && !expoy) || (!expox && expoy))
+		{
+			if (expox)
+				exponent = expox;
+			else
+			{
+				exponent = expoy;
+			}
+		}
+
+		if (exponent)
+		{
+			/* ignore prefix sign for time being */
+			nsign = (((tmp = strchr (str + 1, '-')) == strrchr (str + 1, '-')) && tmp) ? tmp : NULL;
+			psign = (((tmp = strchr (str + 1, '+')) == strrchr (str + 1, '+')) && tmp) ? tmp : NULL;
+
+			if ((nsign && !psign) || (!nsign && psign))
+			{
+				if (nsign)
+					sign = nsign;
+				else
+				{
+					sign = psign;
+				}
+			}
+			else
+			{
+				sign = NULL;
+			}
+		}
+
+		if (period || exponent)
+		{
+			if (period && !exponent)
+			{
+				check = true;
+
+				for (int idx = 0; (idx < len) && check; idx++)
+					if (!isdigit (str[idx]) && ((str + idx) != period))
+						check = false;
+			}
+			else if (!period && exponent)
+			{
+
+				if ((exponent > str) && (exponent < (str + len - 1)) && (sign < (str + len - 1)))
+				{
+					if (((!sign) && isdigit (*(exponent + 1))) || ((sign) && isdigit (*(sign + 1))))
+					{
+						check = true;
+
+						for (int idx = 0; (idx < len) && check; idx++)
+							if (!isdigit (str[idx]) && ((str + idx) != exponent)
+									&& ((str + idx) != sign))
+								check = false;
+					}
+				}
+			}
+			else
+			{
+				if ((exponent > period) && (exponent != (str + 1))
+						&& (exponent < (str + len - 1)) && (sign < (str + len - 1)))
+				{
+					if ((!sign && isdigit (*(exponent + 1))) || (sign && isdigit (*(sign + 1))))
+					{
+						check = true;
+
+						for (int idx = 0; (idx < len) && check; idx++)
+							if (!isdigit (str[idx]) && ((str + idx) != period)
+									&& ((str + idx) != exponent) && ((str + idx) != sign))
+								check = false;
+					}
+				}
+			}
+
+			if (check)
+			{
+				flag = true;
+			}
+		}
 	}
 
 	return flag;
 }
 
+/* TODO: consideration of encoding prefix */
 bool isstring (const char *str)
 {
 	int len;
