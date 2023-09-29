@@ -8,11 +8,13 @@
 #include <string.h>
 #include <ctype.h>
 #include <limits.h>
+#include <float.h>
 #include <assert.h>
 
 #include "lexizer.h"
 
-const char *classes [] =
+
+const char *tokens [] =
 {
 	"keyword",
 	"identifier",
@@ -65,9 +67,31 @@ const char *punctuators [] =
 	"<:", ":>", "<%", "%>", "%:", "%:%:",
 };
 
+char *buffer = NULL;
+
 static void print_keywords (void);
 static void print_ppkeywords (void);
 static void print_punctuators (void);
+
+bool iskeyword (const char *);
+bool isppkeyword (const char *);
+bool ispunctuator (const char *);
+
+bool isbin (const char *);
+bool isoct (const char *);
+bool isint (const char *);
+bool ishex (const char *);
+
+bool isinteger (const char *);
+bool isreal (const char *);
+
+bool isstring (const char *);
+bool ischaracter (const char *);
+
+bool isidentifier (const char *);
+
+void *getvalue (struct token_t *, bool);
+
 
 bool iskeyword (const char *str)
 {
@@ -355,6 +379,337 @@ bool isidentifier (const char *str)
 			for (int idx = 1; idx < len; idx++)
 				if (!isalnum (str[idx]) && (str[idx] != '_'))
 					flag = false;
+		}
+	}
+
+	return flag;
+}
+
+void *getvalue (struct token_t *token, bool print)
+{
+	void *retptr = NULL;
+	int tag, primary, secondary;
+
+	if (token)
+	{
+		tag = token->type;
+		primary = token->flag[0];
+		secondary = token->flag[1];
+
+		if ((primary >= C_INT) && (primary <= C_STR)
+				&& (tag >= KEYWD) && (tag <= PUNCT))
+		{
+			switch (primary)
+			{
+				case C_INT :
+					{
+						switch (secondary)
+						{
+							case INT_C :
+								{
+									if (print)
+									{
+										printf ("%d", token->value.const_d.int_c);
+									}
+
+									retptr = (void *) &token->value.const_d.int_c;
+
+									break;
+								}
+
+							case UINT_C :
+								{
+									if (print)
+									{
+										printf ("%u", token->value.const_d.uint_c);
+									}
+
+									retptr = (void *) &token->value.const_d.uint_c;
+
+									break;
+								}
+
+							case LONG_C :
+								{
+									if (print)
+									{
+										printf ("%ld", token->value.const_d.long_c);
+									}
+
+									retptr = (void *) &token->value.const_d.long_c;
+
+									break;
+								}
+
+							case ULONG_C :
+								{
+									if (print)
+									{
+										printf ("%lu", token->value.const_d.ulong_c);
+									}
+
+									retptr = (void *) &token->value.const_d.ulong_c;
+
+									break;
+								}
+
+							default :
+								{
+									if (print)
+									{
+										printf ("error processing constant value\n");
+									}
+
+									break;
+								}
+						}
+
+						break;
+					}
+
+				case C_FLT :
+					{
+						switch (secondary)
+						{
+							case FLT_C :
+								{
+									if (print)
+									{
+										printf ("%f", token->value.const_f.float_c);
+									}
+
+									retptr = (void *) &token->value.const_f.float_c;
+
+									break;
+								}
+
+							case DBL_C :
+								{
+									if (print)
+									{
+										printf ("%f", token->value.const_f.double_c);
+									}
+
+									retptr = (void *) &token->value.const_f.double_c;
+
+									break;
+								}
+
+							case LDBL_C :
+								{
+									if (print)
+									{
+										printf ("%Lf", token->value.const_f.ldouble_c);
+									}
+
+									retptr = (void *) &token->value.const_f.ldouble_c;
+
+									break;
+								}
+
+							default :
+								{
+									if (print)
+									{
+										printf ("error processing constant value\n");
+									}
+
+									break;
+								}
+						}
+
+						break;
+					}
+
+				case C_CHR :
+					{
+						switch (secondary)
+						{
+							case CHR_C :
+								{
+									if (print)
+									{
+										printf ("%c", token->value.const_c.char_c);
+									}
+
+									retptr = (void *) &token->value.const_c.char_c;
+
+									break;
+								}
+
+							case WCHR_C :
+								{
+									if (print)
+									{
+										printf ("%lc", token->value.const_c.wchar_c);
+									}
+
+									retptr = (void *) &token->value.const_c.wchar_c;
+
+									break;
+								}
+
+							default :
+								{
+									if (print)
+									{
+										printf ("error processing constant value\n");
+									}
+
+									break;
+								}
+						}
+
+						break;
+					}
+
+				case C_STR :
+					{
+						switch (secondary)
+						{
+							case STR_C :
+								{
+									if (print)
+									{
+										printf ("%s", token->value.const_s.str_c);
+									}
+
+									retptr = (void *) &token->value.const_s.str_c;
+
+									break;
+								}
+
+							case WSTR_C :
+								{
+									if (print)
+									{
+										printf ("%ls", token->value.const_s.wstr_c);
+									}
+
+									retptr = (void *) &token->value.const_s.wstr_c;
+
+									break;
+								}
+
+							default :
+								{
+									if (print)
+									{
+										printf ("error processing constant value\n");
+									}
+
+									break;
+								}
+						}
+
+						break;
+					}
+
+				default :
+					{
+						if (print)
+						{
+							printf ("error processing constant value\n");
+						}
+
+						break;
+					}
+			}
+		}
+	}
+
+	return retptr;
+}
+
+struct token_t *resettoken (struct token_t **token)
+{
+	struct token_t *tok = NULL;
+
+	if (token && (tok = *token))
+	{
+		tok->type = UNDEF;
+
+		bzero ((void *) &(tok->value), sizeof (tok->value));
+		tok->flag[0] = tok->flag[1] = -1;
+
+		bzero ((void *) (tok->lexeme), sizeof (tok->lexeme));
+	}
+
+	return tok;
+}
+
+struct token_t *settoken (struct token_t **token, enum tag_t type, char *lexeme)
+{
+	struct token_t *tok = NULL;
+
+	if (token && (tok = *token) && ((type >= KEYWD) && (type <= UNDEF)) && lexeme)
+	{
+		tok->type = type;
+	}
+
+	return tok;
+}
+
+struct token_t *gettoken (struct token_t **token)
+{
+	struct token_t *new = NULL;
+
+	if ((new = (struct token_t *) malloc (sizeof (struct token_t))))
+	{
+		resettoken (&new);
+
+		if (token)
+		{
+			*token = new;
+		}
+	}
+
+	return new;
+}
+
+bool scantoken (FILE *fh, struct token_t *token)
+{
+	bool flag = false;
+
+	if (fh && !feof (fh))
+	{
+		if (!buffer)
+		{
+			int curr, max, tmp;
+			max = curr = 0;
+
+			tmp = getc (fh);
+			while (tmp != EOF)
+			{
+				while (tmp != '\n')
+				{
+					curr += 1;
+					tmp = getc (fh);
+				}
+
+				if (curr > max)
+				{
+					max = curr;
+				}
+			}
+
+			max += 1;
+
+			if (!(buffer = (char *) calloc (max, sizeof (char))))
+			{
+				fprintf (stderr, "Memory allocation failed\n");
+			}
+
+			rewind (fh);
+		}
+
+		if (buffer && token)
+		{
+			flag = true;
+		}
+		else
+		{
+			fprintf (stderr, "Internal procedure failed\n");
 		}
 	}
 
